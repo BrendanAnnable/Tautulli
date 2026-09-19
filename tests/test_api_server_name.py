@@ -23,7 +23,7 @@ class ServerNameTests(unittest.TestCase):
         self.api = API2()
 
     def request(self, command, **kwargs):
-        return self.api._api_run(
+        return API2()._api_run(
             cmd=command, apikey=self.api_key, **kwargs)
 
     def test_server_name_remains_a_string(self):
@@ -50,6 +50,19 @@ class ServerNameTests(unittest.TestCase):
                 'get_server_friendly_name', out_type='xml'))['response']
         self.assertEqual(response['result'], 'success')
         self.assertEqual(response['data'], '1260')
+
+    def test_server_preferences_remain_strings(self):
+        for value in ('1260', '0', 'true', 'false', '[1260]'):
+            with self.subTest(value=value), patch.object(
+                    webserve.pmsconnect.PmsConnect, 'get_server_pref',
+                    return_value=value), patch.object(
+                    webserve.pmsconnect.PmsConnect, '__init__',
+                    return_value=None):
+                response = json.loads(self.request(
+                    'get_server_pref', pref='FriendlyName'))['response']
+                self.assertEqual(response['result'], 'success')
+                self.assertIsInstance(response['data'], str)
+                self.assertEqual(response['data'], value)
 
     def test_other_commands_still_decode_structured_responses(self):
         responses = (

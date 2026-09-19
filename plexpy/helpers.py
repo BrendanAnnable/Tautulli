@@ -60,6 +60,8 @@ def addtoapi(*dargs, **dkwargs):
 
         args:
             dargs: (string, optional) Used to rename a function
+            parse_response: (bool, optional) Decode serialized JSON/XML results.
+                Defaults to True. Set to False for literal string results.
 
         Example:
             @addtoapi("i_was_renamed", "im_a_second_alias")
@@ -67,6 +69,8 @@ def addtoapi(*dargs, **dkwargs):
 
     """
     def rd(function):
+        function._api_parse_response = dkwargs.get('parse_response', True)
+
         @wraps(function)
         def wrapper(*args, **kwargs):
             return function(*args, **kwargs)

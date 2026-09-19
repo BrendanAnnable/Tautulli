@@ -721,12 +721,14 @@ General optional parameters:
                 logger._BLACKLIST_WORDS.add(kwargs['push_token'])
 
         result = None
+        parse_response = True
         logger.api_debug('Tautulli APIv2 :: API called with kwargs: %s' % kwargs)
 
         self._api_validate(**kwargs)
 
         if self._api_cmd and self._api_authenticated:
             call = getattr(self, self._api_cmd)
+            parse_response = getattr(call, '_api_parse_response', True)
 
             # Profile is written to console.
             if self._api_profileme:
@@ -752,10 +754,7 @@ General optional parameters:
         # convert it to a list/dict before we change it to the users
         # wanted output
         try:
-            if self._api_cmd == 'get_server_friendly_name':
-                # Names are literal strings, even if they contain valid JSON/XML.
-                ret = result
-            elif isinstance(result, (dict, list)):
+            if not parse_response or isinstance(result, (dict, list)):
                 ret = result
             elif result is not None:
                 raise Exception

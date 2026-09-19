@@ -4248,7 +4248,7 @@ class WebInterface(object):
 
     @cherrypy.expose
     @requireAuth(member_of("admin"))
-    @addtoapi()
+    @addtoapi(parse_response=False)
     def get_server_pref(self, pref=None, **kwargs):
         """ Get a specified PMS server preference.
 
@@ -5885,7 +5885,7 @@ class WebInterface(object):
     @cherrypy.expose
     @cherrypy.tools.json_out()
     @requireAuth(member_of("admin"))
-    @addtoapi()
+    @addtoapi(parse_response=False)
     def get_server_friendly_name(self, **kwargs):
         """ Get the name of the PMS.
 
