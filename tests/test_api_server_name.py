@@ -9,6 +9,7 @@ import cherrypy
 import xmltodict
 
 import plexpy
+from plexpy import helpers
 from plexpy import webserve  # Register web interface methods with API2.
 from plexpy.api2 import API2
 
@@ -20,11 +21,22 @@ class ServerNameTests(unittest.TestCase):
         config_patch = patch.object(plexpy, 'CONFIG', config)
         config_patch.start()
         self.addCleanup(config_patch.stop)
-        self.api = API2()
+        cache_patch = patch.object(API2, '_api_valid_methods_cached', None)
+        cache_patch.start()
+        self.addCleanup(cache_patch.stop)
 
     def request(self, command, **kwargs):
         return API2()._api_run(
             cmd=command, apikey=self.api_key, **kwargs)
+
+    def register_handler(self, function, *aliases, **kwargs):
+        for name in aliases or (function.__name__,):
+            method_patch = patch.object(API2, name, create=True)
+            method_patch.start()
+            self.addCleanup(method_patch.stop)
+        wrapper = helpers.addtoapi(*aliases, **kwargs)(function)
+        API2._api_valid_methods_cached = None
+        return wrapper
 
     def test_server_name_remains_a_string(self):
         names = (
@@ -51,31 +63,41 @@ class ServerNameTests(unittest.TestCase):
         self.assertEqual(response['result'], 'success')
         self.assertEqual(response['data'], '1260')
 
-    def test_server_preferences_remain_strings(self):
-        for value in ('1260', '0', 'true', 'false', '[1260]'):
-            with self.subTest(value=value), patch.object(
-                    webserve.pmsconnect.PmsConnect, 'get_server_pref',
-                    return_value=value), patch.object(
-                    webserve.pmsconnect.PmsConnect, '__init__',
-                    return_value=None):
-                response = json.loads(self.request(
-                    'get_server_pref', pref='FriendlyName'))['response']
-                self.assertEqual(response['result'], 'success')
-                self.assertIsInstance(response['data'], str)
-                self.assertEqual(response['data'], value)
+    def test_literal_response_option_applies_to_all_aliases(self):
+        def literal_response(self, value):
+            """Return a literal value."""
+            return value
 
-    def test_other_commands_still_decode_structured_responses(self):
+        aliases = ('literal_response_one', 'literal_response_two')
+        wrapper = self.register_handler(
+            literal_response, *aliases, parse_response=False)
+        for alias in aliases:
+            with self.subTest(alias=alias):
+                response = json.loads(self.request(
+                    alias, value='1260'))['response']
+                self.assertEqual(cherrypy.response.status, 200)
+                self.assertEqual(response['result'], 'success')
+                self.assertEqual(response['data'], '1260')
+        self.assertEqual(wrapper(None, value='1260'), '1260')
+
+    def test_default_decorator_preserves_legacy_response_parsing(self):
+        def serialized_response(self, value):
+            """Return a serialized value."""
+            return value
+
+        self.register_handler(serialized_response)
         responses = (
+            ('1260', 1260),
+            ('true', True),
             ('{"name": "1260"}', {'name': '1260'}),
             ('[1260]', [1260]),
             ('<name>1260</name>', {'name': '1260'}),
             ({'name': '1260'}, {'name': '1260'}),
         )
         for raw, expected in responses:
-            with self.subTest(raw=raw), patch.object(
-                    API2, 'get_server_info', return_value=raw):
-                response = json.loads(
-                    self.request('get_server_info'))['response']
+            with self.subTest(raw=raw):
+                response = json.loads(self.request(
+                    'serialized_response', value=raw))['response']
                 self.assertEqual(response['result'], 'success')
                 self.assertEqual(response['data'], expected)
 

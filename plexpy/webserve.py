@@ -4248,7 +4248,7 @@ class WebInterface(object):
 
     @cherrypy.expose
     @requireAuth(member_of("admin"))
-    @addtoapi(parse_response=False)
+    @addtoapi()
     def get_server_pref(self, pref=None, **kwargs):
         """ Get a specified PMS server preference.
 
