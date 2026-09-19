@@ -752,7 +752,10 @@ General optional parameters:
         # convert it to a list/dict before we change it to the users
         # wanted output
         try:
-            if isinstance(result, (dict, list)):
+            if self._api_cmd == 'get_server_friendly_name':
+                # Names are literal strings, even if they contain valid JSON/XML.
+                ret = result
+            elif isinstance(result, (dict, list)):
                 ret = result
             elif result is not None:
                 raise Exception
